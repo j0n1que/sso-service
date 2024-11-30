@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  sso:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sso-service
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongoadmin
+      MONGO_INITDB_ROOT_PASSWORD: pass123
+      MONGODB_URI: mongodb://mongoadmin:pass123@mongo:27017
+    ports:
+      - "44044:44044"
+    networks:
+      - sso-network
+    depends_on:
+      - redis
+      - mongo
+      - mongo-express
+
+  mongo:
+    image: mongo:latest
+    restart: always
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongoadmin
+      MONGO_INITDB_ROOT_PASSWORD: pass123
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodata:/data/db
+    networks:
+      - sso-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 10s
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: mongoadmin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: pass123
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_AUTH_DATABASE: admin
+    networks:
+      - sso-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "apk add --no-cache curl && curl -f -u admin:pass http://localhost:8081"]
+      interval: 30s
+      retries: 3
+      start_period: 20s
+      timeout: 10s
+    depends_on:
+      - mongo
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    volumes:
+      - redis_volume_data:/data
+    ports:
+      - 6379:6379
+    environment:
+      REDIS_PASSWORD: redispass
+    command: ["redis-server", "--requirepass", "redispass"]
+    networks:
+      - sso-network
+    depends_on:
+      - mongo
+      - mongo-express
+
+
+volumes:
+  mongodata:
+  redis_volume_data:
+
+networks:
+  sso-network:
+    driver: bridge
