@@ -189,8 +189,7 @@ func (dao *UserDAO) EnsureIndexes(ctx context.Context) error {
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys:    bson.D{{Key: "telegramLogin", Value: 1}},
-			Options: options.Index().SetUnique(true),
+			Keys: bson.D{{Key: "telegramLogin", Value: 1}},
 		},
 	}
 
